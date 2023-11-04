@@ -1,11 +1,18 @@
 #打包文件
-!pip install pyinstaller
-!pyinstaller --onefile your_script.py
+#!pip install pyinstaller
+#!pyinstaller --onefile your_script.py
+
+
 
 import requests
 import logging
 import re
 from urllib.parse import urljoin
+import json
+from os import makedirs
+from os.path import exists
+import multiprocessing
+
 
 
 '''
@@ -18,11 +25,11 @@ level=logging.INFO：这将日志级别设置为INFO
 '''
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s: %(message)s')
-
-
 #设置要爬取的url以及爬取的页数
 BASE_URL = 'https://ssr1.scrape.center'
 TOTAL_PAGE = 10
+
+
 
 '''
 定义一个较通用的爬取页面的方法，叫做 scrape_page
@@ -30,7 +37,6 @@ TOTAL_PAGE = 10
 这里首先判断了状态码是不是 200，如果是，则直接返回页面的 HTML 代码
 如果不是，则会输出错误日志信息
 '''
-
 def scrape_page(url):
     logging.info('scraping %s...', url)
     try:
@@ -41,15 +47,17 @@ def scrape_page(url):
     except requests.RequestException:
         logging.error('error occurred while scraping %s', url, exc_info=True)
 
+
+
 '''
 接收一个 page 参数，即列表页的页码
 我们在方法里面实现列表页的 URL 拼接
 然后调用 scrape_page 方法爬取
 '''
-
 def scrape_index(page):
     index_url = f'{BASE_URL}/page/{page}'
     return scrape_page(index_url)
+
 
 
 '''
@@ -57,7 +65,6 @@ def scrape_index(page):
 储存在列表中
 用urljoin方法连接成完整url
 '''
-
 def parse_index(html):
     pattern = re.compile('<a.*?href="(.*?)".*?class="name">')
     items = re.findall(pattern, html)
@@ -69,13 +76,16 @@ def parse_index(html):
         yield detail_url 
 #return 用于从函数中返回一个值并结束函数，而 yield 用于创建生成器函数，允许逐个生成值而保持函数状态
 
+
+
 def scrape_detail(url):
     return scrape_page(url)
+
+
 
 '''
 parse_detail 方法用于解析详情页，它接收一个参数为 html，解析其中的内容，并以字典的形式返回结果
 '''
-
 def parse_detail(html):
     cover_pattern = re.compile('class="item.*?<img.*?src="(.*?)".*?class="cover">', re.S)
     name_pattern = re.compile('<h2.*?>(.*?)</h2>')
@@ -99,24 +109,24 @@ def parse_detail(html):
     }
 
 
-import json
-from os import makedirs
-from os.path import exists
 
 RESULTS_DIR = 'results'
 exists(RESULTS_DIR) or makedirs(RESULTS_DIR)
 #使用 exists 函数检查 RESULTS_DIR 目录是否已经存在。如果目录不存在，它使用 makedirs 函数创建该目录
 
+
+
+'''
+用json文件格式存储数据
+'''
 def save_data(data):
     name = data.get('name')
     data_path = f'{RESULTS_DIR}/{name}.json'
     json.dump(data, open(data_path, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
-    
 #ensure_ascii 设置为 False，可以保证的中文字符在文件中能以正常的中文文本呈现
 #indent 为 2，则是设置了 JSON 数据的结果有两行缩进
 
 
-import multiprocessing
 
 def main(page):
     index_html = scrape_index(page)
@@ -129,8 +139,11 @@ def main(page):
         save_data(data)
         logging.info('data saved successfully')
 
+
+
 if __name__ == '__main__':
     pool = multiprocessing.Pool()
+    #多进程加速
     pages = range(1, TOTAL_PAGE + 1)
     pool.map(main, pages)
     pool.close()
