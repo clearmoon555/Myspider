@@ -1,9 +1,3 @@
-#打包文件
-#!pip install pyinstaller
-#!pyinstaller --onefile your_script.py
-
-
-
 import requests
 import logging
 import re
